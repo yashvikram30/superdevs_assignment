@@ -612,8 +612,25 @@ async fn main() {
         .parse::<u16>()
         .expect("PORT must be a valid number");
     
-    let addr = SocketAddr::from(([0, 0, 0, 0], port)); // Listen on all interfaces
-    println!("Listening on {}", addr);
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    // IMPORTANT: Bind to 0.0.0.0 (all interfaces), not 127.0.0.1 (localhost only)
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    println!("Server starting on {}", addr);
+    
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(listener) => {
+            println!("Successfully bound to {}", addr);
+            listener
+        }
+        Err(e) => {
+            eprintln!("Failed to bind to {}: {}", addr, e);
+            std::process::exit(1);
+        }
+    };
+    
+    println!("Solana HTTP server is running on {}", addr);
+    
+    if let Err(e) = axum::serve(listener, app).await {
+        eprintln!("Server error: {}", e);
+        std::process::exit(1);
+    }
 }
