@@ -15,6 +15,8 @@ use std::env;
 use solana_sdk::signature::SeedDerivable;
 use axum::{response::{IntoResponse, Response}, http::StatusCode, extract::rejection::JsonRejection};
 use thiserror::Error;
+use axum::ServiceExt;
+use base64::Engine;
 
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991; // 2^53 - 1, max safe integer in JS
 
@@ -231,7 +233,7 @@ async fn token_create(
         is_signer: meta.is_signer,
         is_writable: meta.is_writable,
     }).collect();
-    let instruction_data = base64::encode(&ix.data);
+    let instruction_data = base64::engine::general_purpose::STANDARD.encode(&ix.data);
     let resp = TokenCreateResponse {
         program_id: ix.program_id.to_string(),
         accounts,
@@ -269,7 +271,7 @@ async fn token_mint(
         is_signer: meta.is_signer,
         is_writable: meta.is_writable,
     }).collect();
-    let instruction_data = base64::encode(&ix.data);
+    let instruction_data = base64::engine::general_purpose::STANDARD.encode(&ix.data);
     let resp = TokenMintResponse {
         program_id: ix.program_id.to_string(),
         accounts,
@@ -293,7 +295,7 @@ async fn message_sign(
     }
     let keypair = parse_secret_key(&req.secret)?;
     let signature = keypair.sign_message(req.message.as_bytes());
-    let signature_b64 = base64::encode(signature.as_ref());
+    let signature_b64 = base64::engine::general_purpose::STANDARD.encode(signature.as_ref());
     let public_key = keypair.pubkey().to_string();
     let resp = MessageSignResponse {
         signature: signature_b64,
@@ -320,7 +322,7 @@ async fn message_verify(
         return Err(AppError::BadRequest("Missing required field: pubkey".to_string()));
     }
     let pubkey = parse_pubkey(&req.pubkey, "pubkey")?;
-    let signature_bytes = base64::decode(&req.signature)
+    let signature_bytes = base64::engine::general_purpose::STANDARD.decode(&req.signature)
         .map_err(|_| AppError::BadRequest("Invalid base64 for signature".to_string()))?;
     if signature_bytes.len() != 64 {
         return Err(AppError::BadRequest(format!("Invalid signature length: expected 64 bytes, got {}", signature_bytes.len())));
@@ -353,7 +355,7 @@ async fn send_sol(
     }
     let ix = solana_sdk::system_instruction::transfer(&from, &to, req.lamports);
     let accounts = ix.accounts.iter().map(|meta| meta.pubkey.to_string()).collect();
-    let instruction_data = base64::encode(&ix.data);
+    let instruction_data = base64::engine::general_purpose::STANDARD.encode(&ix.data);
     let resp = SendSolResponse {
         program_id: ix.program_id.to_string(),
         accounts,
@@ -390,7 +392,7 @@ async fn send_token(
         pubkey: meta.pubkey.to_string(),
         is_signer: meta.is_signer,
     }).collect();
-    let instruction_data = base64::encode(&ix.data);
+    let instruction_data = base64::engine::general_purpose::STANDARD.encode(&ix.data);
     let resp = SendTokenResponse {
         program_id: ix.program_id.to_string(),
         accounts,
@@ -418,8 +420,7 @@ async fn main() {
         .route("/message/verify", post(message_verify))
         .route("/send/sol", post(send_sol))
         .route("/send/token", post(send_token))
-        .layer(cors)
-        .handle_error(|err| AppError::from(err));
+        .layer(cors);
         
     let port = env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
