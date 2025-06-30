@@ -9,6 +9,9 @@ use serde::Deserialize;
 use solana_sdk::pubkey::Pubkey;
 use spl_token::instruction as token_instruction;
 use base64;
+use axum::http::Method;
+use tower_http::cors::{CorsLayer, Any};
+use std::env;
 
 #[derive(Serialize)]
 struct ApiResponse<T> {
@@ -596,6 +599,9 @@ async fn send_token(
 
 #[tokio::main]
 async fn main() {
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST]);
     let app = Router::new()
         .route("/health", get(health))
         .route("/keypair", post(generate_keypair))
@@ -604,33 +610,10 @@ async fn main() {
         .route("/message/sign", post(message_sign))
         .route("/message/verify", post(message_verify))
         .route("/send/sol", post(send_sol))
-        .route("/send/token", post(send_token));
-    
-    // Use PORT environment variable or default to 8080
-    let port = std::env::var("PORT")
-        .unwrap_or_else(|_| "8080".to_string())
-        .parse::<u16>()
-        .expect("PORT must be a valid number");
-    
-    // IMPORTANT: Bind to 0.0.0.0 (all interfaces), not 127.0.0.1 (localhost only)
+        .route("/send/token", post(send_token))
+        .layer(cors);
+    let port = env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    println!("Server starting on {}", addr);
-    
-    let listener = match tokio::net::TcpListener::bind(addr).await {
-        Ok(listener) => {
-            println!("Successfully bound to {}", addr);
-            listener
-        }
-        Err(e) => {
-            eprintln!("Failed to bind to {}: {}", addr, e);
-            std::process::exit(1);
-        }
-    };
-    
-    println!("Solana HTTP server is running on {}", addr);
-    
-    if let Err(e) = axum::serve(listener, app).await {
-        eprintln!("Server error: {}", e);
-        std::process::exit(1);
-    }
+    println!("Listening on {}", addr);
+    axum::serve(tokio::net::TcpListener::bind(addr).await.unwrap(), app).await.unwrap();
 }
