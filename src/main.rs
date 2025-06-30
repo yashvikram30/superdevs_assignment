@@ -165,7 +165,7 @@ struct SendTokenResponse {
 }
 
 fn parse_pubkey(pubkey_str: &str, field_name: &str) -> Result<Pubkey, AppError> {
-    if pubkey_str.is_empty() {
+    if pubkey_str.trim().is_empty() {
         return Err(AppError::BadRequest(format!("Missing required field: {}", field_name)));
     }
     let bytes = bs58::decode(pubkey_str).into_vec()
@@ -178,7 +178,7 @@ fn parse_pubkey(pubkey_str: &str, field_name: &str) -> Result<Pubkey, AppError> 
 }
 
 fn parse_secret_key(secret_str: &str) -> Result<Keypair, AppError> {
-    if secret_str.is_empty() {
+    if secret_str.trim().is_empty() {
         return Err(AppError::BadRequest("Missing required field: secret".to_string()));
     }
     let bytes = bs58::decode(secret_str).into_vec()
@@ -287,10 +287,10 @@ async fn token_mint(
 async fn message_sign(
     AxumJson(req): AxumJson<MessageSignRequest>,
 ) -> Result<Json<ApiResponse<MessageSignResponse>>, AppError> {
-    if req.message.is_empty() {
+    if req.message.trim().is_empty() {
         return Err(AppError::BadRequest("Missing required field: message".to_string()));
     }
-    if req.secret.is_empty() {
+    if req.secret.trim().is_empty() {
         return Err(AppError::BadRequest("Missing required field: secret".to_string()));
     }
     let keypair = parse_secret_key(&req.secret)?;
@@ -312,13 +312,13 @@ async fn message_sign(
 async fn message_verify(
     AxumJson(req): AxumJson<MessageVerifyRequest>,
 ) -> Result<Json<ApiResponse<MessageVerifyResponse>>, AppError> {
-    if req.message.is_empty() {
+    if req.message.trim().is_empty() {
         return Err(AppError::BadRequest("Missing required field: message".to_string()));
     }
-    if req.signature.is_empty() {
+    if req.signature.trim().is_empty() {
         return Err(AppError::BadRequest("Missing required field: signature".to_string()));
     }
-    if req.pubkey.is_empty() {
+    if req.pubkey.trim().is_empty() {
         return Err(AppError::BadRequest("Missing required field: pubkey".to_string()));
     }
     let pubkey = parse_pubkey(&req.pubkey, "pubkey")?;
