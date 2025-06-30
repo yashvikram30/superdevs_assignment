@@ -252,6 +252,9 @@ async fn token_mint(
     let mint = parse_pubkey(&req.mint, "mint")?;
     let destination = parse_pubkey(&req.destination, "destination")?;
     let authority = parse_pubkey(&req.authority, "authority")?;
+    if destination == authority {
+        return Err(AppError::BadRequest("Destination and authority cannot be the same public key.".to_string()));
+    }
     if req.amount == 0 {
         return Err(AppError::BadRequest("Amount must be greater than 0".to_string()));
     }
@@ -347,6 +350,9 @@ async fn send_sol(
 ) -> Result<Json<ApiResponse<SendSolResponse>>, AppError> {
     let from = parse_pubkey(&req.from, "from")?;
     let to = parse_pubkey(&req.to, "to")?;
+    if from == to {
+        return Err(AppError::BadRequest("From and to cannot be the same public key.".to_string()));
+    }
     if req.lamports == 0 {
         return Err(AppError::BadRequest("Lamports must be greater than 0".to_string()));
     }
@@ -374,6 +380,9 @@ async fn send_token(
     let destination = parse_pubkey(&req.destination, "destination")?;
     let mint = parse_pubkey(&req.mint, "mint")?;
     let owner = parse_pubkey(&req.owner, "owner")?;
+    if destination == owner {
+        return Err(AppError::BadRequest("Destination and owner cannot be the same public key.".to_string()));
+    }
     if req.amount == 0 {
         return Err(AppError::BadRequest("Amount must be greater than 0".to_string()));
     }
