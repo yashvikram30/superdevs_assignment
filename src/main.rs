@@ -605,7 +605,14 @@ async fn main() {
         .route("/message/verify", post(message_verify))
         .route("/send/sol", post(send_sol))
         .route("/send/token", post(send_token));
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    
+    // Use PORT environment variable or default to 8080
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse::<u16>()
+        .expect("PORT must be a valid number");
+    
+    let addr = SocketAddr::from(([0, 0, 0, 0], port)); // Listen on all interfaces
     println!("Listening on {}", addr);
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
